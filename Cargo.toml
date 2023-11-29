@@ -1,5 +1,11 @@
 [package]
 name = "bits"
+description = "Converts input into bits (with explanations, where applicable)"
+authors = ["Markus Mayer <github@widemeadows.de>"]
+categories = ["command-line-utilities", "development-tools"]
+keywords = ["bits", "bit-interpretation"]
+license = "EUPL-1.2"
+readme = "README.md"
 version = "0.1.0"
 edition = "2021"
 
