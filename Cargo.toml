@@ -2,6 +2,8 @@
 name = "bits"
 description = "Converts input into bits (with explanations, where applicable)"
 authors = ["Markus Mayer <github@widemeadows.de>"]
+homepage = "https://github.com/sunsided/bits"
+repository = "https://github.com/sunsided/bits"
 categories = ["command-line-utilities", "development-tools"]
 keywords = ["bits", "bit-interpretation"]
 license = "EUPL-1.2"
