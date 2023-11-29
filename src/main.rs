@@ -2,6 +2,7 @@ use clap::Parser;
 #[cfg(feature = "half")]
 use half::{bf16, f16};
 use std::borrow::Cow;
+use std::collections::HashSet;
 use std::io::{self, Read, Write};
 use std::str::FromStr;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
@@ -18,12 +19,15 @@ struct Options {
     /// Set color choice. One of: always, always-ansi, auto, or never.
     #[clap(long, value_parser(color_style))]
     color: Option<ColorChoice>,
+    /// Set the allowed type.
+    #[clap(long("type"), value_parser(allowed_type), use_value_delimiter(true))]
+    types: Option<Vec<AllowedType>>,
 }
 
 fn main() {
     let options = Options::parse();
 
-    let input = match read_input(&options) {
+    let input = match read_input(options.stdin, &options.input) {
         None => return,
         Some(input) => input,
     };
@@ -31,12 +35,26 @@ fn main() {
     let color_choice = options.color.unwrap_or(ColorChoice::Auto);
     let mut stdout = StandardStream::stdout(color_choice);
 
+    let types = options.types.map_or(HashSet::new(), HashSet::from_iter);
+    let type_enabled = |t: AllowedType| types.is_empty() || types.contains(&t);
+
     #[cfg(feature = "half")]
-    try_handle_f16(&input, &mut stdout).ok();
+    if type_enabled(AllowedType::Ieee754HalfPrecision) {
+        try_handle_f16(&input, &mut stdout).ok();
+    }
+
     #[cfg(feature = "half")]
-    try_handle_bf16(&input, &mut stdout).ok();
-    try_handle_f32(&input, &mut stdout).ok();
-    try_handle_f64(&input, &mut stdout).ok();
+    if type_enabled(AllowedType::BrainFloatingPoint) {
+        try_handle_bf16(&input, &mut stdout).ok();
+    }
+
+    if type_enabled(AllowedType::Ieee754SinglePrecision) {
+        try_handle_f32(&input, &mut stdout).ok();
+    }
+
+    if type_enabled(AllowedType::Ieee754DoublePrecision) {
+        try_handle_f64(&input, &mut stdout).ok();
+    }
 }
 
 #[cfg(feature = "half")]
@@ -284,12 +302,12 @@ enum Foreground {
     None(usize),
 }
 
-fn read_input(options: &Options) -> Option<Cow<str>> {
-    if options.stdin {
+fn read_input(stdin: bool, input: &Option<String>) -> Option<Cow<str>> {
+    if stdin {
         let mut buffer = String::new();
         io::stdin().read_to_string(&mut buffer).unwrap();
         Some(Cow::Owned(buffer.trim().to_string()))
-    } else if let Some(input) = &options.input {
+    } else if let Some(input) = &input {
         Some(Cow::Borrowed(&input))
     } else {
         None
@@ -304,6 +322,34 @@ fn color_style(s: &str) -> Result<ColorChoice, String> {
         "never" => Ok(ColorChoice::Never),
         _ => Err(String::from(
             "Either never, auto, always or always-ansi must be specified",
+        )),
+    }
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+enum AllowedType {
+    /// Enable [`f16`].
+    #[cfg(feature = "half")]
+    Ieee754HalfPrecision,
+    /// Enable [`bf16`].
+    #[cfg(feature = "half")]
+    BrainFloatingPoint,
+    /// Enable [`f32`].
+    Ieee754SinglePrecision,
+    /// Enable [`f64`].
+    Ieee754DoublePrecision,
+}
+
+fn allowed_type(s: &str) -> Result<AllowedType, String> {
+    match s {
+        #[cfg(feature = "half")]
+        "f16" => Ok(AllowedType::Ieee754HalfPrecision),
+        #[cfg(feature = "half")]
+        "bf16" => Ok(AllowedType::BrainFloatingPoint),
+        "f32" => Ok(AllowedType::Ieee754SinglePrecision),
+        "f64" => Ok(AllowedType::Ieee754DoublePrecision),
+        _ => Err(String::from(
+            "Either f16, bf16, f32 or f64 must be specified",
         )),
     }
 }

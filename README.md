@@ -28,3 +28,18 @@ f64:  1011111111010011001100110011001100110011001100110011001100110011
       E: Exponent (11 bits)
       M: Fraction / Mantissa (52 bits)
 ```
+
+If only some types are required, the `--type=...` option can be used, e.g. `bin --type=f16,f32 -0.3` which gives
+
+```
+f16:  1011010011001101
+      SEEEEEMMMMMMMMMM
+      S: Sign (1 bit)
+      E: Exponent (5 bits)
+      M: Fraction / Mantissa (10 bits)
+f32:  10111110100110011001100110011010
+      SEEEEEEEEMMMMMMMMMMMMMMMMMMMMMMM
+      S: Sign (1 bit)
+      E: Exponent (8 bits)
+      M: Fraction / Mantissa (23 bits)
+```
