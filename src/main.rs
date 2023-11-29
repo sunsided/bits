@@ -1,4 +1,6 @@
 use clap::Parser;
+#[cfg(feature = "half")]
+use half::{bf16, f16};
 use std::borrow::Cow;
 use std::io::{self, Read, Write};
 use std::str::FromStr;
@@ -29,8 +31,112 @@ fn main() {
     let color_choice = options.color.unwrap_or(ColorChoice::Auto);
     let mut stdout = StandardStream::stdout(color_choice);
 
+    #[cfg(feature = "half")]
+    try_handle_f16(&input, &mut stdout).ok();
+    #[cfg(feature = "half")]
+    try_handle_bf16(&input, &mut stdout).ok();
     try_handle_f32(&input, &mut stdout).ok();
     try_handle_f64(&input, &mut stdout).ok();
+}
+
+#[cfg(feature = "half")]
+fn try_handle_f16<I: AsRef<str>>(input: I, mut stdout: &mut StandardStream) -> io::Result<bool> {
+    if let Ok(value) = f16::from_str(input.as_ref()) {
+        let bits: u16 = unsafe { std::mem::transmute(value) };
+
+        print_colored(
+            &mut stdout,
+            0,
+            format!("f16:  {:016b}", bits),
+            [
+                Foreground::None(6),
+                Foreground::Color(Color::Red, 1),
+                Foreground::Color(Color::Green, 5),
+                Foreground::Color(Color::Blue, 10),
+            ],
+        )?;
+        print_colored(
+            &mut stdout,
+            6,
+            "SEEEEEMMMMMMMMMM",
+            [
+                Foreground::Color(Color::Red, 1),
+                Foreground::Color(Color::Green, 5),
+                Foreground::Color(Color::Blue, 10),
+            ],
+        )?;
+        print_colored(
+            &mut stdout,
+            6,
+            "S: Sign (1 bit)",
+            [Foreground::Color(Color::Red, 0)],
+        )?;
+        print_colored(
+            &mut stdout,
+            6,
+            "E: Exponent (5 bits)",
+            [Foreground::Color(Color::Green, 0)],
+        )?;
+        print_colored(
+            &mut stdout,
+            6,
+            "M: Fraction / Mantissa (10 bits)",
+            [Foreground::Color(Color::Blue, 0)],
+        )?;
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
+
+#[cfg(feature = "half")]
+fn try_handle_bf16<I: AsRef<str>>(input: I, mut stdout: &mut StandardStream) -> io::Result<bool> {
+    if let Ok(value) = bf16::from_str(input.as_ref()) {
+        let bits: u16 = unsafe { std::mem::transmute(value) };
+
+        print_colored(
+            &mut stdout,
+            0,
+            format!("bf16: {:016b}", bits),
+            [
+                Foreground::None(6),
+                Foreground::Color(Color::Red, 1),
+                Foreground::Color(Color::Green, 8),
+                Foreground::Color(Color::Blue, 7),
+            ],
+        )?;
+        print_colored(
+            &mut stdout,
+            6,
+            "SEEEEEEEEMMMMMMM",
+            [
+                Foreground::Color(Color::Red, 1),
+                Foreground::Color(Color::Green, 8),
+                Foreground::Color(Color::Blue, 7),
+            ],
+        )?;
+        print_colored(
+            &mut stdout,
+            6,
+            "S: Sign (1 bit)",
+            [Foreground::Color(Color::Red, 0)],
+        )?;
+        print_colored(
+            &mut stdout,
+            6,
+            "E: Exponent (8 bits)",
+            [Foreground::Color(Color::Green, 0)],
+        )?;
+        print_colored(
+            &mut stdout,
+            6,
+            "M: Fraction / Mantissa (7 bits)",
+            [Foreground::Color(Color::Blue, 0)],
+        )?;
+        Ok(true)
+    } else {
+        Ok(false)
+    }
 }
 
 fn try_handle_f32<I: AsRef<str>>(input: I, mut stdout: &mut StandardStream) -> io::Result<bool> {
@@ -40,9 +146,9 @@ fn try_handle_f32<I: AsRef<str>>(input: I, mut stdout: &mut StandardStream) -> i
         print_colored(
             &mut stdout,
             0,
-            format!("f32: {:032b}", bits),
+            format!("f32:  {:032b}", bits),
             [
-                Foreground::None(5),
+                Foreground::None(6),
                 Foreground::Color(Color::Red, 1),
                 Foreground::Color(Color::Green, 8),
                 Foreground::Color(Color::Blue, 23),
@@ -50,7 +156,7 @@ fn try_handle_f32<I: AsRef<str>>(input: I, mut stdout: &mut StandardStream) -> i
         )?;
         print_colored(
             &mut stdout,
-            5,
+            6,
             "SEEEEEEEEMMMMMMMMMMMMMMMMMMMMMMM",
             [
                 Foreground::Color(Color::Red, 1),
@@ -60,19 +166,19 @@ fn try_handle_f32<I: AsRef<str>>(input: I, mut stdout: &mut StandardStream) -> i
         )?;
         print_colored(
             &mut stdout,
-            5,
+            6,
             "S: Sign (1 bit)",
             [Foreground::Color(Color::Red, 0)],
         )?;
         print_colored(
             &mut stdout,
-            5,
+            6,
             "E: Exponent (8 bits)",
             [Foreground::Color(Color::Green, 0)],
         )?;
         print_colored(
             &mut stdout,
-            5,
+            6,
             "M: Fraction / Mantissa (23 bits)",
             [Foreground::Color(Color::Blue, 0)],
         )?;
@@ -89,9 +195,9 @@ fn try_handle_f64<I: AsRef<str>>(input: I, mut stdout: &mut StandardStream) -> i
         print_colored(
             &mut stdout,
             0,
-            format!("f64: {:064b}", bits),
+            format!("f64:  {:064b}", bits),
             [
-                Foreground::None(5),
+                Foreground::None(6),
                 Foreground::Color(Color::Red, 1),
                 Foreground::Color(Color::Green, 11),
                 Foreground::Color(Color::Blue, 52),
@@ -100,7 +206,7 @@ fn try_handle_f64<I: AsRef<str>>(input: I, mut stdout: &mut StandardStream) -> i
 
         print_colored(
             &mut stdout,
-            5,
+            6,
             "SEEEEEEEEEEEMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM",
             [
                 Foreground::Color(Color::Red, 1),
@@ -111,20 +217,20 @@ fn try_handle_f64<I: AsRef<str>>(input: I, mut stdout: &mut StandardStream) -> i
 
         print_colored(
             &mut stdout,
-            5,
+            6,
             "S: Sign (1 bit)",
             [Foreground::Color(Color::Red, 0)],
         )
         .ok();
         print_colored(
             &mut stdout,
-            5,
+            6,
             "E: Exponent (11 bits)",
             [Foreground::Color(Color::Green, 0)],
         )?;
         print_colored(
             &mut stdout,
-            5,
+            6,
             "M: Fraction / Mantissa (52 bits)",
             [Foreground::Color(Color::Blue, 0)],
         )?;
