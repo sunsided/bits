@@ -1,5 +1,5 @@
 [package]
-name = "bits"
+name = "bits-cli"
 description = "Converts input into bits (with explanations, where applicable)"
 authors = ["Markus Mayer <github@widemeadows.de>"]
 homepage = "https://github.com/sunsided/bits"
