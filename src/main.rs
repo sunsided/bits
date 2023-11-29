@@ -13,6 +13,9 @@ struct Options {
     /// If set, read input from stdin instead of positional argument.
     #[clap(long, group = "input_source")]
     stdin: bool,
+    /// Set color choice. One of: always, always-ansi, auto, or never.
+    #[clap(long, value_parser(color_style))]
+    color: Option<ColorChoice>,
 }
 
 fn main() {
@@ -23,7 +26,8 @@ fn main() {
         Some(input) => input,
     };
 
-    let mut stdout = StandardStream::stdout(ColorChoice::Auto);
+    let color_choice = options.color.unwrap_or(ColorChoice::Auto);
+    let mut stdout = StandardStream::stdout(color_choice);
 
     if let Ok(value) = f32::from_str(&input) {
         let bits: u32 = unsafe { std::mem::transmute(value) };
@@ -179,5 +183,17 @@ fn read_input(options: &Options) -> Option<Cow<str>> {
         Some(Cow::Borrowed(&input))
     } else {
         None
+    }
+}
+
+fn color_style(s: &str) -> Result<ColorChoice, String> {
+    match s {
+        "always" => Ok(ColorChoice::Always),
+        "always-ansi" => Ok(ColorChoice::AlwaysAnsi),
+        "auto" => Ok(ColorChoice::Auto),
+        "never" => Ok(ColorChoice::Never),
+        _ => Err(String::from(
+            "Either never, auto, always or always-ansi must be specified",
+        )),
     }
 }
