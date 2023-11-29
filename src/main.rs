@@ -1,6 +1,6 @@
 use clap::Parser;
 use std::borrow::Cow;
-use std::io::{self, repeat, Read, Write};
+use std::io::{self, Read, Write};
 use std::str::FromStr;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
@@ -29,7 +29,12 @@ fn main() {
     let color_choice = options.color.unwrap_or(ColorChoice::Auto);
     let mut stdout = StandardStream::stdout(color_choice);
 
-    if let Ok(value) = f32::from_str(&input) {
+    try_handle_f32(&input, &mut stdout).ok();
+    try_handle_f64(&input, &mut stdout).ok();
+}
+
+fn try_handle_f32<I: AsRef<str>>(input: I, mut stdout: &mut StandardStream) -> io::Result<bool> {
+    if let Ok(value) = f32::from_str(input.as_ref()) {
         let bits: u32 = unsafe { std::mem::transmute(value) };
 
         print_colored(
@@ -42,8 +47,7 @@ fn main() {
                 Foreground::Color(Color::Green, 8),
                 Foreground::Color(Color::Blue, 23),
             ],
-        )
-        .ok();
+        )?;
         print_colored(
             &mut stdout,
             5,
@@ -53,32 +57,33 @@ fn main() {
                 Foreground::Color(Color::Green, 8),
                 Foreground::Color(Color::Blue, 23),
             ],
-        )
-        .ok();
+        )?;
         print_colored(
             &mut stdout,
             5,
             "S: Sign (1 bit)",
             [Foreground::Color(Color::Red, 0)],
-        )
-        .ok();
+        )?;
         print_colored(
             &mut stdout,
             5,
             "E: Exponent (8 bits)",
             [Foreground::Color(Color::Green, 0)],
-        )
-        .ok();
+        )?;
         print_colored(
             &mut stdout,
             5,
             "M: Fraction / Mantissa (23 bits)",
             [Foreground::Color(Color::Blue, 0)],
-        )
-        .ok();
+        )?;
+        Ok(true)
+    } else {
+        Ok(false)
     }
+}
 
-    if let Ok(value) = f64::from_str(&input) {
+fn try_handle_f64<I: AsRef<str>>(input: I, mut stdout: &mut StandardStream) -> io::Result<bool> {
+    if let Ok(value) = f64::from_str(input.as_ref()) {
         let bits: u64 = unsafe { std::mem::transmute(value) };
 
         print_colored(
@@ -91,8 +96,7 @@ fn main() {
                 Foreground::Color(Color::Green, 11),
                 Foreground::Color(Color::Blue, 52),
             ],
-        )
-        .ok();
+        )?;
 
         print_colored(
             &mut stdout,
@@ -103,8 +107,7 @@ fn main() {
                 Foreground::Color(Color::Green, 11),
                 Foreground::Color(Color::Blue, 52),
             ],
-        )
-        .ok();
+        )?;
 
         print_colored(
             &mut stdout,
@@ -118,15 +121,16 @@ fn main() {
             5,
             "E: Exponent (11 bits)",
             [Foreground::Color(Color::Green, 0)],
-        )
-        .ok();
+        )?;
         print_colored(
             &mut stdout,
             5,
             "M: Fraction / Mantissa (52 bits)",
             [Foreground::Color(Color::Blue, 0)],
-        )
-        .ok();
+        )?;
+        Ok(true)
+    } else {
+        Ok(false)
     }
 }
 
