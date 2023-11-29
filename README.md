@@ -43,3 +43,23 @@ f32:  10111110100110011001100110011010
       E: Exponent (8 bits)
       M: Fraction / Mantissa (23 bits)
 ```
+
+### Full, short and very short format
+
+By default, `--display=full` is implied, showing all information. If only type and bit information are wished,
+`--display=short` can be used:
+
+```
+f16:  1011010011001101
+f32:  10111110100110011001100110011010
+```
+
+If only the bits are wished for, the `--display=very-short` format exists, removing even the type information:
+
+```
+1011010011001101
+10111110100110011001100110011010
+```
+
+The very short format makes most sense in combination with specific types; in the example above, `--type=f16,f32`
+was used.

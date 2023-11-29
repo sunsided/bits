@@ -7,6 +7,8 @@ use std::io::{self, Read, Write};
 use std::str::FromStr;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
+const PADDING: usize = 6;
+
 #[derive(Debug, clap::Parser)]
 #[clap(name = "bits")]
 struct Options {
@@ -22,6 +24,9 @@ struct Options {
     /// Set the allowed type.
     #[clap(long("type"), value_parser(allowed_type), use_value_delimiter(true))]
     types: Option<Vec<AllowedType>>,
+    /// Set the allowed type.
+    #[clap(long, value_parser(display_mode))]
+    display: Option<DisplayMode>,
 }
 
 fn main() {
@@ -35,30 +40,36 @@ fn main() {
     let color_choice = options.color.unwrap_or(ColorChoice::Auto);
     let mut stdout = StandardStream::stdout(color_choice);
 
+    let display_mode = options.display.unwrap_or(DisplayMode::Full);
+
     let types = options.types.map_or(HashSet::new(), HashSet::from_iter);
     let type_enabled = |t: AllowedType| types.is_empty() || types.contains(&t);
 
     #[cfg(feature = "half")]
     if type_enabled(AllowedType::Ieee754HalfPrecision) {
-        try_handle_f16(&input, &mut stdout).ok();
+        try_handle_f16(&input, &mut stdout, display_mode).ok();
     }
 
     #[cfg(feature = "half")]
     if type_enabled(AllowedType::BrainFloatingPoint) {
-        try_handle_bf16(&input, &mut stdout).ok();
+        try_handle_bf16(&input, &mut stdout, display_mode).ok();
     }
 
     if type_enabled(AllowedType::Ieee754SinglePrecision) {
-        try_handle_f32(&input, &mut stdout).ok();
+        try_handle_f32(&input, &mut stdout, display_mode).ok();
     }
 
     if type_enabled(AllowedType::Ieee754DoublePrecision) {
-        try_handle_f64(&input, &mut stdout).ok();
+        try_handle_f64(&input, &mut stdout, display_mode).ok();
     }
 }
 
 #[cfg(feature = "half")]
-fn try_handle_f16<I: AsRef<str>>(input: I, mut stdout: &mut StandardStream) -> io::Result<bool> {
+fn try_handle_f16<I: AsRef<str>>(
+    input: I,
+    mut stdout: &mut StandardStream,
+    display_mode: DisplayMode,
+) -> io::Result<bool> {
     if let Ok(value) = f16::from_str(input.as_ref()) {
         let bits: u16 = unsafe { std::mem::transmute(value) };
 
@@ -67,40 +78,46 @@ fn try_handle_f16<I: AsRef<str>>(input: I, mut stdout: &mut StandardStream) -> i
             0,
             format!("f16:  {:016b}", bits),
             [
-                Foreground::None(6),
+                if display_mode != DisplayMode::VeryShort {
+                    Foreground::Default(6)
+                } else {
+                    Foreground::Skip(6)
+                },
                 Foreground::Color(Color::Red, 1),
                 Foreground::Color(Color::Green, 5),
                 Foreground::Color(Color::Blue, 10),
             ],
         )?;
-        print_colored(
-            &mut stdout,
-            6,
-            "SEEEEEMMMMMMMMMM",
-            [
-                Foreground::Color(Color::Red, 1),
-                Foreground::Color(Color::Green, 5),
-                Foreground::Color(Color::Blue, 10),
-            ],
-        )?;
-        print_colored(
-            &mut stdout,
-            6,
-            "S: Sign (1 bit)",
-            [Foreground::Color(Color::Red, 0)],
-        )?;
-        print_colored(
-            &mut stdout,
-            6,
-            "E: Exponent (5 bits)",
-            [Foreground::Color(Color::Green, 0)],
-        )?;
-        print_colored(
-            &mut stdout,
-            6,
-            "M: Fraction / Mantissa (10 bits)",
-            [Foreground::Color(Color::Blue, 0)],
-        )?;
+        if display_mode == DisplayMode::Full {
+            print_colored(
+                &mut stdout,
+                6,
+                "SEEEEEMMMMMMMMMM",
+                [
+                    Foreground::Color(Color::Red, 1),
+                    Foreground::Color(Color::Green, 5),
+                    Foreground::Color(Color::Blue, 10),
+                ],
+            )?;
+            print_colored(
+                &mut stdout,
+                6,
+                "S: Sign (1 bit)",
+                [Foreground::Color(Color::Red, 0)],
+            )?;
+            print_colored(
+                &mut stdout,
+                6,
+                "E: Exponent (5 bits)",
+                [Foreground::Color(Color::Green, 0)],
+            )?;
+            print_colored(
+                &mut stdout,
+                6,
+                "M: Fraction / Mantissa (10 bits)",
+                [Foreground::Color(Color::Blue, 0)],
+            )?;
+        }
         Ok(true)
     } else {
         Ok(false)
@@ -108,7 +125,11 @@ fn try_handle_f16<I: AsRef<str>>(input: I, mut stdout: &mut StandardStream) -> i
 }
 
 #[cfg(feature = "half")]
-fn try_handle_bf16<I: AsRef<str>>(input: I, mut stdout: &mut StandardStream) -> io::Result<bool> {
+fn try_handle_bf16<I: AsRef<str>>(
+    input: I,
+    mut stdout: &mut StandardStream,
+    display_mode: DisplayMode,
+) -> io::Result<bool> {
     if let Ok(value) = bf16::from_str(input.as_ref()) {
         let bits: u16 = unsafe { std::mem::transmute(value) };
 
@@ -117,47 +138,57 @@ fn try_handle_bf16<I: AsRef<str>>(input: I, mut stdout: &mut StandardStream) -> 
             0,
             format!("bf16: {:016b}", bits),
             [
-                Foreground::None(6),
+                if display_mode != DisplayMode::VeryShort {
+                    Foreground::Default(PADDING)
+                } else {
+                    Foreground::Skip(PADDING)
+                },
                 Foreground::Color(Color::Red, 1),
                 Foreground::Color(Color::Green, 8),
                 Foreground::Color(Color::Blue, 7),
             ],
         )?;
-        print_colored(
-            &mut stdout,
-            6,
-            "SEEEEEEEEMMMMMMM",
-            [
-                Foreground::Color(Color::Red, 1),
-                Foreground::Color(Color::Green, 8),
-                Foreground::Color(Color::Blue, 7),
-            ],
-        )?;
-        print_colored(
-            &mut stdout,
-            6,
-            "S: Sign (1 bit)",
-            [Foreground::Color(Color::Red, 0)],
-        )?;
-        print_colored(
-            &mut stdout,
-            6,
-            "E: Exponent (8 bits)",
-            [Foreground::Color(Color::Green, 0)],
-        )?;
-        print_colored(
-            &mut stdout,
-            6,
-            "M: Fraction / Mantissa (7 bits)",
-            [Foreground::Color(Color::Blue, 0)],
-        )?;
+        if display_mode == DisplayMode::Full {
+            print_colored(
+                &mut stdout,
+                PADDING,
+                "SEEEEEEEEMMMMMMM",
+                [
+                    Foreground::Color(Color::Red, 1),
+                    Foreground::Color(Color::Green, 8),
+                    Foreground::Color(Color::Blue, 7),
+                ],
+            )?;
+            print_colored(
+                &mut stdout,
+                PADDING,
+                "S: Sign (1 bit)",
+                [Foreground::Color(Color::Red, 0)],
+            )?;
+            print_colored(
+                &mut stdout,
+                PADDING,
+                "E: Exponent (8 bits)",
+                [Foreground::Color(Color::Green, 0)],
+            )?;
+            print_colored(
+                &mut stdout,
+                6,
+                "M: Fraction / Mantissa (7 bits)",
+                [Foreground::Color(Color::Blue, 0)],
+            )?;
+        }
         Ok(true)
     } else {
         Ok(false)
     }
 }
 
-fn try_handle_f32<I: AsRef<str>>(input: I, mut stdout: &mut StandardStream) -> io::Result<bool> {
+fn try_handle_f32<I: AsRef<str>>(
+    input: I,
+    mut stdout: &mut StandardStream,
+    display_mode: DisplayMode,
+) -> io::Result<bool> {
     if let Ok(value) = f32::from_str(input.as_ref()) {
         let bits: u32 = unsafe { std::mem::transmute(value) };
 
@@ -166,47 +197,57 @@ fn try_handle_f32<I: AsRef<str>>(input: I, mut stdout: &mut StandardStream) -> i
             0,
             format!("f32:  {:032b}", bits),
             [
-                Foreground::None(6),
+                if display_mode != DisplayMode::VeryShort {
+                    Foreground::Default(PADDING)
+                } else {
+                    Foreground::Skip(PADDING)
+                },
                 Foreground::Color(Color::Red, 1),
                 Foreground::Color(Color::Green, 8),
                 Foreground::Color(Color::Blue, 23),
             ],
         )?;
-        print_colored(
-            &mut stdout,
-            6,
-            "SEEEEEEEEMMMMMMMMMMMMMMMMMMMMMMM",
-            [
-                Foreground::Color(Color::Red, 1),
-                Foreground::Color(Color::Green, 8),
-                Foreground::Color(Color::Blue, 23),
-            ],
-        )?;
-        print_colored(
-            &mut stdout,
-            6,
-            "S: Sign (1 bit)",
-            [Foreground::Color(Color::Red, 0)],
-        )?;
-        print_colored(
-            &mut stdout,
-            6,
-            "E: Exponent (8 bits)",
-            [Foreground::Color(Color::Green, 0)],
-        )?;
-        print_colored(
-            &mut stdout,
-            6,
-            "M: Fraction / Mantissa (23 bits)",
-            [Foreground::Color(Color::Blue, 0)],
-        )?;
+        if display_mode == DisplayMode::Full {
+            print_colored(
+                &mut stdout,
+                PADDING,
+                "SEEEEEEEEMMMMMMMMMMMMMMMMMMMMMMM",
+                [
+                    Foreground::Color(Color::Red, 1),
+                    Foreground::Color(Color::Green, 8),
+                    Foreground::Color(Color::Blue, 23),
+                ],
+            )?;
+            print_colored(
+                &mut stdout,
+                PADDING,
+                "S: Sign (1 bit)",
+                [Foreground::Color(Color::Red, 0)],
+            )?;
+            print_colored(
+                &mut stdout,
+                PADDING,
+                "E: Exponent (8 bits)",
+                [Foreground::Color(Color::Green, 0)],
+            )?;
+            print_colored(
+                &mut stdout,
+                PADDING,
+                "M: Fraction / Mantissa (23 bits)",
+                [Foreground::Color(Color::Blue, 0)],
+            )?;
+        }
         Ok(true)
     } else {
         Ok(false)
     }
 }
 
-fn try_handle_f64<I: AsRef<str>>(input: I, mut stdout: &mut StandardStream) -> io::Result<bool> {
+fn try_handle_f64<I: AsRef<str>>(
+    input: I,
+    mut stdout: &mut StandardStream,
+    display_mode: DisplayMode,
+) -> io::Result<bool> {
     if let Ok(value) = f64::from_str(input.as_ref()) {
         let bits: u64 = unsafe { std::mem::transmute(value) };
 
@@ -215,43 +256,47 @@ fn try_handle_f64<I: AsRef<str>>(input: I, mut stdout: &mut StandardStream) -> i
             0,
             format!("f64:  {:064b}", bits),
             [
-                Foreground::None(6),
+                if display_mode != DisplayMode::VeryShort {
+                    Foreground::Default(PADDING)
+                } else {
+                    Foreground::Skip(PADDING)
+                },
                 Foreground::Color(Color::Red, 1),
                 Foreground::Color(Color::Green, 11),
                 Foreground::Color(Color::Blue, 52),
             ],
         )?;
-
-        print_colored(
-            &mut stdout,
-            6,
-            "SEEEEEEEEEEEMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM",
-            [
-                Foreground::Color(Color::Red, 1),
-                Foreground::Color(Color::Green, 11),
-                Foreground::Color(Color::Blue, 52),
-            ],
-        )?;
-
-        print_colored(
-            &mut stdout,
-            6,
-            "S: Sign (1 bit)",
-            [Foreground::Color(Color::Red, 0)],
-        )
-        .ok();
-        print_colored(
-            &mut stdout,
-            6,
-            "E: Exponent (11 bits)",
-            [Foreground::Color(Color::Green, 0)],
-        )?;
-        print_colored(
-            &mut stdout,
-            6,
-            "M: Fraction / Mantissa (52 bits)",
-            [Foreground::Color(Color::Blue, 0)],
-        )?;
+        if display_mode == DisplayMode::Full {
+            print_colored(
+                &mut stdout,
+                PADDING,
+                "SEEEEEEEEEEEMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM",
+                [
+                    Foreground::Color(Color::Red, 1),
+                    Foreground::Color(Color::Green, 11),
+                    Foreground::Color(Color::Blue, 52),
+                ],
+            )?;
+            print_colored(
+                &mut stdout,
+                PADDING,
+                "S: Sign (1 bit)",
+                [Foreground::Color(Color::Red, 0)],
+            )
+            .ok();
+            print_colored(
+                &mut stdout,
+                PADDING,
+                "E: Exponent (11 bits)",
+                [Foreground::Color(Color::Green, 0)],
+            )?;
+            print_colored(
+                &mut stdout,
+                PADDING,
+                "M: Fraction / Mantissa (52 bits)",
+                [Foreground::Color(Color::Blue, 0)],
+            )?;
+        }
         Ok(true)
     } else {
         Ok(false)
@@ -269,10 +314,16 @@ fn print_colored<S: AsRef<str>, C: IntoIterator<Item = Foreground>>(
     let input = input.as_ref();
     let mut start = 0;
     for color in colors {
-        let (color, repetitions) = match color {
-            Foreground::Color(color, repetitions) => (Some(color), repetitions),
-            Foreground::None(repetitions) => (None, repetitions),
+        let (color, repetitions, show) = match color {
+            Foreground::Color(color, repetitions) => (Some(color), repetitions, true),
+            Foreground::Default(repetitions) => (None, repetitions, true),
+            Foreground::Skip(repetitions) => (None, repetitions, false),
         };
+
+        if !show {
+            start += repetitions;
+            continue;
+        }
 
         let repetitions = if repetitions == 0 {
             input.len() - start
@@ -299,7 +350,8 @@ fn print_colored<S: AsRef<str>, C: IntoIterator<Item = Foreground>>(
 
 enum Foreground {
     Color(Color, usize),
-    None(usize),
+    Default(usize),
+    Skip(usize),
 }
 
 fn read_input(stdin: bool, input: &Option<String>) -> Option<Cow<str>> {
@@ -351,5 +403,24 @@ fn allowed_type(s: &str) -> Result<AllowedType, String> {
         _ => Err(String::from(
             "Either f16, bf16, f32 or f64 must be specified",
         )),
+    }
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+enum DisplayMode {
+    /// Shows only bit information (no types).
+    VeryShort,
+    /// Shows only type and bit information.
+    Short,
+    /// Shows all information.
+    Full,
+}
+
+fn display_mode(s: &str) -> Result<DisplayMode, String> {
+    match s {
+        "very-short" => Ok(DisplayMode::VeryShort),
+        "short" => Ok(DisplayMode::Short),
+        "full" => Ok(DisplayMode::Full),
+        _ => Err(String::from("Either short or full must be specified")),
     }
 }
